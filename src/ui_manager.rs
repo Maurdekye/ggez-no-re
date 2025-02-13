@@ -247,7 +247,7 @@ impl<B, T> UIElement<B, T> {
     }
 }
 
-pub struct UIManager<E, T> {
+pub struct UIManager<E, T = E> {
     #[allow(clippy::type_complexity)]
     elements: Vec<UIElement<Rc<RefCell<Button<E>>>, Rc<RefCell<TextInput>>>>,
     pub cursor_override: Option<CursorIcon>,
