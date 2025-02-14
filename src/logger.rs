@@ -14,8 +14,9 @@ use log::{LevelFilter, Log, Record};
 
 use crate::util::{ResultExtToIoError, SystemTimeExt};
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum, Default)]
 pub enum LogLevel {
+    #[default]
     Off,
     Error,
     Warn,
@@ -59,20 +60,17 @@ pub struct Logger {
 }
 
 impl Logger {
-    pub fn install(
-        log_path: Option<PathBuf>,
-        level: LogLevel,
-        prefix: impl Into<String>,
-    ) -> Result<(), io::Error> {
-        log::set_boxed_logger(Box::new(Logger::new(log_path, level, prefix)?))
-            .map(|_| log::set_max_level(level.into()))
+    pub fn install(self) -> Result<(), io::Error> {
+        let level = self.level_filter.into();
+        log::set_boxed_logger(Box::new(self))
+            .map(|_| log::set_max_level(level))
             .to_ioerror()
     }
 
     pub fn new(
         log_path: Option<PathBuf>,
         level: LogLevel,
-        prefix:  impl Into<String>,
+        prefix: impl Into<String>,
     ) -> Result<Logger, io::Error> {
         let file = log_path
             .map(|mut path| {
@@ -164,5 +162,41 @@ impl Drop for Logger {
     fn drop(&mut self) {
         drop(self.message_sender.take());
         self.join_handle.take().unwrap().join().unwrap();
+    }
+}
+
+#[derive(Default)]
+pub struct LoggerBuilder {
+    pub path: Option<PathBuf>,
+    pub level: LogLevel,
+    pub prefix: Option<String>,
+}
+
+impl LoggerBuilder {
+    pub fn new() -> LoggerBuilder {
+        LoggerBuilder::default()
+    }
+
+    pub fn path(mut self, path: PathBuf) -> Self {
+        self.path = Some(path);
+        self
+    }
+
+    pub fn level(mut self, level: LogLevel) -> Self {
+        self.level = level;
+        self
+    }
+
+    pub fn prefix(mut self, prefix: impl Into<String>) -> Self {
+        self.prefix = Some(prefix.into());
+        self
+    }
+
+    pub fn build(self) -> Result<Logger, io::Error> {
+        Logger::new(self.path, self.level, self.prefix.unwrap_or_default())
+    }
+
+    pub fn install(self) -> Result<(), io::Error> {
+        self.build()?.install()
     }
 }
