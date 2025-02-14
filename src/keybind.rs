@@ -11,14 +11,14 @@ use serde::{Deserialize, Serialize};
 
 #[macro_export]
 macro_rules! keybinds {
-    ($(#[$meta:meta])* $(pub)? struct $structname:ident {$($name:ident: $key:expr),* $(,)?}) => {
+    ($(#[$meta:meta])* struct $structname:ident {$($name:ident: $key:expr),* $(,)?}) => {
         $(#[$meta])*
-        #[derive(Clone, Debug, ::serde::Serialize, ::serde::Deserialize)]
-        $(pub)? struct $structname {
+        #[derive(::core::clone::Clone, ::core::fmt::Debug, ::serde::Serialize, ::serde::Deserialize)]
+        pub struct $structname {
             $(pub $name: $crate::keybind::Keybind),*
         }
 
-        impl Default for $structname {
+        impl ::core::default::Default for $structname {
             fn default() -> $structname {
                 $structname {
                     $($name: $key.into()),*
