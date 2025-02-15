@@ -4,8 +4,9 @@ use std::{
     path::PathBuf,
 };
 
-use log::error;
 use serde::Serialize;
+
+use crate::util::ResultExt;
 
 #[derive(Clone)]
 pub struct CsvRecorder {
@@ -20,9 +21,7 @@ impl CsvRecorder {
     }
 
     pub fn record(&self, subpath: impl Into<PathBuf>, record: impl Serialize) {
-        let _ = self
-            .record_inner(subpath, record)
-            .map_err(|e| error!("{e}"));
+        self.record_inner(subpath, record).log_and_ignore();
     }
 
     pub fn record_inner(

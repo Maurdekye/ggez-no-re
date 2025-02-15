@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet, hash_map::Entry},
     error::Error as StdError,
+    fmt::Display,
     io,
     sync::mpsc::{Receiver, TryRecvError},
     time::SystemTime,
@@ -12,6 +13,7 @@ use ggez::{
     glam::{Vec2, vec2},
     graphics::{Canvas, Color, DrawParam, Drawable, Rect, Text},
 };
+use log::error;
 
 #[macro_export]
 macro_rules! sdbg {
@@ -410,6 +412,28 @@ pub trait SystemTimeExt {
 impl SystemTimeExt for SystemTime {
     fn strftime(self, format_str: &str) -> String {
         <DateTime<Utc>>::from(self).format(format_str).to_string()
+    }
+}
+
+pub trait ResultExt {
+    type T;
+
+    fn log_and_ok(self) -> Option<Self::T>;
+    fn log_and_ignore(self);
+}
+
+impl<T, E> ResultExt for Result<T, E>
+where
+    E: Display,
+{
+    type T = T;
+
+    fn log_and_ok(self) -> Option<T> {
+        self.map_err(|e| error!("{e}")).ok()
+    }
+
+    fn log_and_ignore(self) {
+        let _ = self.log_and_ok();
     }
 }
 
