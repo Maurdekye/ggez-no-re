@@ -38,6 +38,13 @@ impl Keybind {
     pub fn pressed(&self, ctx: &Context) -> bool {
         match self {
             Keybind::Mouse(mouse_button) => ctx.mouse.button_pressed(*mouse_button),
+            Keybind::Key(Key::Character(chr)) => {
+                ctx.keyboard
+                    .is_logical_key_pressed(&Key::Character(chr.clone()))
+                    || ctx
+                        .keyboard
+                        .is_logical_key_pressed(&Key::Character(chr.clone().to_ascii_uppercase().into()))
+            }
             Keybind::Key(key) => ctx.keyboard.is_logical_key_pressed(key),
         }
     }
@@ -45,14 +52,27 @@ impl Keybind {
     pub fn just_pressed(&self, ctx: &Context) -> bool {
         match self {
             Keybind::Mouse(mouse_button) => ctx.mouse.button_just_pressed(*mouse_button),
+            Keybind::Key(Key::Character(chr)) => {
+                ctx.keyboard
+                    .is_logical_key_just_pressed(&Key::Character(chr.clone()))
+                    || ctx.keyboard.is_logical_key_just_pressed(&Key::Character(
+                        chr.to_ascii_uppercase().into(),
+                    ))
+            }
             Keybind::Key(key) => ctx.keyboard.is_logical_key_just_pressed(key),
         }
     }
 
-    #[allow(unused)]
     pub fn just_released(&self, ctx: &Context) -> bool {
         match self {
             Keybind::Mouse(mouse_button) => ctx.mouse.button_just_released(*mouse_button),
+            Keybind::Key(Key::Character(chr)) => {
+                ctx.keyboard
+                    .is_logical_key_just_released(&Key::Character(chr.clone()))
+                    || ctx.keyboard.is_logical_key_just_released(&Key::Character(
+                        chr.to_ascii_uppercase().into(),
+                    ))
+            }
             Keybind::Key(key) => ctx.keyboard.is_logical_key_just_released(key),
         }
     }

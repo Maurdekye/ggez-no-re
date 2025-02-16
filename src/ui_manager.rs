@@ -454,13 +454,18 @@ where
                             &HashSet::new()
                         };
                         for key in just_pressed_keys.iter().chain(additional_keys) {
+                            log::trace!("key = {key:?}");
                             match key {
                                 Key::Named(NamedKey::Delete) => text_input.delete_char(),
                                 Key::Named(NamedKey::Backspace) => text_input.backspace_char(),
                                 Key::Named(NamedKey::ArrowRight) => text_input.right(),
                                 Key::Named(NamedKey::ArrowLeft) => text_input.left(),
                                 Key::Character(ch) => {
-                                    if ch == "v"
+                                    if (ch == "v"
+                                        || (!ctx
+                                            .keyboard
+                                            .is_logical_key_pressed(&Key::Named(NamedKey::Shift))
+                                            && ch == "V"))
                                         && ctx
                                             .keyboard
                                             .is_logical_key_pressed(&Key::Named(NamedKey::Control))
@@ -471,13 +476,6 @@ where
                                             .unwrap_or_default();
                                         for chr in clipboard_contents.chars() {
                                             text_input.type_char(chr);
-                                        }
-                                    } else if ctx
-                                        .keyboard
-                                        .is_logical_key_pressed(&Key::Named(NamedKey::Shift))
-                                    {
-                                        for c in ch.to_uppercase().chars() {
-                                            text_input.type_char(c);
                                         }
                                     } else {
                                         for c in ch.chars() {
