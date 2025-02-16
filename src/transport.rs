@@ -1,6 +1,6 @@
 use std::{
     io::{self, ErrorKind, Read, Write},
-    net::{IpAddr, Ipv6Addr, SocketAddr, TcpListener, TcpStream},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, TcpListener, TcpStream},
     ops::{Deref, DerefMut},
     sync::mpsc::{Receiver, Sender, channel},
     thread::{self, JoinHandle},
@@ -9,6 +9,8 @@ use std::{
 
 use log::{debug, error};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+
+use crate::util::ResultExt;
 
 const MAX_PACKET_SIZE: usize = 16 * 1024 * 1024;
 
@@ -203,8 +205,8 @@ impl DerefMut for ServersideTransport {
 struct SocketMessage(SocketAddr);
 
 pub struct MessageServer {
-    listener_thread: Option<JoinHandle<()>>,
-    thread_kill: Sender<()>,
+    listener_threads: Vec<JoinHandle<()>>,
+    thread_kills: Vec<Sender<()>>,
 }
 
 impl MessageServer {
@@ -216,29 +218,45 @@ impl MessageServer {
         M: ClientServerMessage + DeserializeOwned,
         M::ClientMessage: TryFrom<M>,
     {
-        let (thread_kill, deathswitch) = channel();
-        let listener_thread = {
-            Some(thread::spawn(move || {
-                Self::listener_thread::<M>(event_sender, deathswitch, port)
-            }))
+        let (ipv6_thread_kill, ipv6_deathswitch) = channel();
+        let (ipv4_thread_kill, ipv4_deathswitch) = channel();
+        let listener_threads = {
+            vec![
+                {
+                    let event_sender = event_sender.clone();
+                    thread::spawn(move || {
+                        Self::listener_thread::<M>(
+                            event_sender,
+                            ipv6_deathswitch,
+                            SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), port),
+                        )
+                    })
+                },
+                thread::spawn(move || {
+                    Self::listener_thread::<M>(
+                        event_sender,
+                        ipv4_deathswitch,
+                        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), port),
+                    )
+                }),
+            ]
         };
         MessageServer {
-            listener_thread,
-            thread_kill,
+            listener_threads,
+            thread_kills: vec![ipv4_thread_kill, ipv6_thread_kill],
         }
     }
 
     fn listener_thread<M>(
         event_sender: Sender<impl From<(IpAddr, ServerNetworkEvent<M>)> + Send + 'static>,
         deathswitch: Receiver<()>,
-        port: u16,
+        socket: SocketAddr,
     ) where
         M: ClientServerMessage + DeserializeOwned,
         M::ClientMessage: TryFrom<M>,
     {
-        debug!("message server starting");
-        let listener =
-            TcpListener::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), port)).unwrap();
+        debug!("message server starting on socket {socket}");
+        let listener = TcpListener::bind(socket).unwrap();
         listener.set_nonblocking(true).unwrap();
         while deathswitch.try_recv().is_err() {
             match listener.accept() {
@@ -305,8 +323,12 @@ impl MessageServer {
 
 impl Drop for MessageServer {
     fn drop(&mut self) {
-        self.thread_kill.send(()).unwrap();
-        self.listener_thread.take().unwrap().join().unwrap();
+        while let Some(killswitch) = self.thread_kills.pop() {
+            killswitch.send(()).log_and_ignore();
+        }
+        while let Some(thread) = self.listener_threads.pop() {
+            thread.join().unwrap();
+        }
     }
 }
 
