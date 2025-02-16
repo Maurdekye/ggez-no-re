@@ -1,6 +1,6 @@
 use std::{
     io::{self, ErrorKind, Read, Write},
-    net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream},
+    net::{IpAddr, Ipv6Addr, SocketAddr, TcpListener, TcpStream},
     ops::{Deref, DerefMut},
     sync::mpsc::{Receiver, Sender, channel},
     thread::{self, JoinHandle},
@@ -237,8 +237,8 @@ impl MessageServer {
         M::ClientMessage: TryFrom<M>,
     {
         debug!("message server starting");
-        let addr = SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port);
-        let listener = TcpListener::bind(addr).unwrap();
+        let listener =
+            TcpListener::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), port)).unwrap();
         listener.set_nonblocking(true).unwrap();
         while deathswitch.try_recv().is_err() {
             match listener.accept() {
