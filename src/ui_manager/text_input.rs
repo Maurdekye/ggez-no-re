@@ -12,11 +12,9 @@ use ggez::{
     },
 };
 
-use crate::util::{
-    AnchorPoint, ContextExt, DrawableWihParamsExt, MinByF32Key, RectExt, TextExt,
-};
+use crate::util::{AnchorPoint, ContextExt, DrawableWihParamsExt, MinByF32Key, RectExt, TextExt};
 
-use super::{Bounds, TEXTINPUT_BODY, TEXTINPUT_BORDER, UIElementState};
+use super::{Bounds, UIElementRenderable, UIElementState, TEXTINPUT_BODY, TEXTINPUT_BORDER};
 
 pub const CURSOR_BLINK_INTERVAL: f32 = 1.0;
 
@@ -215,5 +213,15 @@ impl TextInput {
             }
         }
         Ok(cursor_override)
+    }
+}
+
+impl UIElementRenderable for TextInput {
+    fn get_corrected_bounds(&self, ctx: &Context) -> ggez::graphics::Rect {
+        self.bounds.corrected_bounds(ctx.res())
+    }
+
+    fn get_state(&self) -> UIElementState {
+        self.state
     }
 }

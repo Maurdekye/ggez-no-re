@@ -164,7 +164,7 @@ pub fn color_mul(color: Color, factor: f32) -> Color {
 }
 
 #[allow(unused)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum AnchorPoint {
     NorthWest,
     NorthCenter,

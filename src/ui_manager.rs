@@ -1,21 +1,53 @@
-use std::{cell::RefCell, collections::HashSet, rc::Rc, sync::mpsc::Sender};
+use std::{
+    cell::RefCell,
+    collections::HashSet,
+    rc::Rc,
+    sync::{Mutex, mpsc::Sender},
+};
 
 use button::Button;
 use checkbox::Checkbox;
 use ggez::{
     Context, GameError, GameResult,
-    glam::Vec2,
-    graphics::{Canvas, Color, Rect},
+    glam::{Vec2, vec2},
+    graphics::{Canvas, Color, Rect, Text},
     input::mouse::{CursorIcon, set_cursor_type},
     winit::keyboard::Key,
 };
 use text_input::TextInput;
 
-use crate::sub_event_handler::SubEventHandler;
+use crate::{
+    sub_event_handler::SubEventHandler,
+    util::{AnchorPoint, RectExt, TextExt},
+};
 
 pub mod button;
 pub mod checkbox;
 pub mod text_input;
+
+static CURSOR_ICON_BUFFER: Mutex<CursorIcon> = Mutex::new(CursorIcon::Default);
+static CURSOR_ICON: Mutex<CursorIcon> = Mutex::new(CursorIcon::Default);
+
+pub fn set_cursor_icon(icon: CursorIcon) {
+    *CURSOR_ICON_BUFFER.lock().unwrap() = icon;
+}
+
+pub fn flush_cursor_icon(ctx: &mut Context) {
+    let new_icon = *CURSOR_ICON_BUFFER.lock().unwrap();
+    let mut cursor_icon = CURSOR_ICON.lock().unwrap();
+    if new_icon != *cursor_icon {
+        *cursor_icon = new_icon;
+        set_cursor_type(ctx, new_icon);
+    }
+}
+
+pub fn begin_context(_ctx: &mut Context) {
+    set_cursor_icon(CursorIcon::Default);
+}
+
+pub fn end_context(ctx: &mut Context) {
+    flush_cursor_icon(ctx);
+}
 
 pub const TEXTINPUT_BODY: Color = Color {
     r: 0.94,
@@ -208,7 +240,7 @@ where
             .collect();
         self.last_pressed_keys = ctx.keyboard.pressed_logical_keys.clone();
         for element in self.elements.iter() {
-            self.cursor_override = match element {
+            let new_override = match element {
                 UIElement::Button(button) => {
                     button
                         .borrow_mut()
@@ -222,13 +254,48 @@ where
                 UIElement::Checkbox(checkbox) => {
                     checkbox.borrow_mut().update(ctx, self.mouse_position)?
                 }
+            };
+            if let Some(new_override) = new_override {
+                self.cursor_override = Some(new_override);
             }
-            .or(self.cursor_override);
         }
 
         if let Some(cursor_icon) = self.cursor_override {
-            set_cursor_type(ctx, cursor_icon);
+            set_cursor_icon(cursor_icon);
         }
+        Ok(())
+    }
+}
+
+pub trait UIElementRenderable {
+    fn get_corrected_bounds(&self, ctx: &Context) -> Rect;
+    fn get_state(&self) -> UIElementState;
+
+    fn render_label(
+        &self,
+        ctx: &Context,
+        canvas: &mut Canvas,
+        text: &Text,
+        anchor_point: AnchorPoint,
+    ) -> GameResult<()> {
+        if self.get_state() == UIElementState::Invisible {
+            return Ok(());
+        }
+
+        let (rel_offset, abs_offset, text_anchor) = match anchor_point {
+            AnchorPoint::CenterWest => (vec2(0.0, 0.5), vec2(-6.0, 0.0), AnchorPoint::CenterEast),
+            AnchorPoint::CenterEast => (vec2(1.0, 0.5), vec2(6.0, 0.0), AnchorPoint::CenterWest),
+            AnchorPoint::NorthCenter => (vec2(0.5, 0.0), vec2(0.0, -6.0), AnchorPoint::SouthCenter),
+            anchor_point => unimplemented!("Anchor point type {anchor_point:?} is unimplemented"),
+        };
+        text.anchored_by(
+            ctx,
+            self.get_corrected_bounds(ctx).parametric(rel_offset) + abs_offset,
+            text_anchor,
+        )?
+        .color(Color::BLACK)
+        .draw(canvas);
+
         Ok(())
     }
 }

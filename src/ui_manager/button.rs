@@ -10,7 +10,7 @@ use ggez::{
 
 use crate::util::{ContextExt, DrawableWihParamsExt, color_mul};
 
-use super::{BUTTON_COLOR, Bounds, UIElementState};
+use super::{BUTTON_COLOR, Bounds, UIElementRenderable, UIElementState};
 #[derive(Debug)]
 pub struct Button<E> {
     pub bounds: Bounds,
@@ -95,5 +95,15 @@ impl<E> Button<E> {
             return Ok(Some(CursorIcon::Pointer));
         }
         Ok(None)
+    }
+}
+
+impl<E> UIElementRenderable for Button<E> {
+    fn get_corrected_bounds(&self, ctx: &Context) -> ggez::graphics::Rect {
+        self.bounds.corrected_bounds(ctx.res())
+    }
+
+    fn get_state(&self) -> UIElementState {
+        self.state
     }
 }

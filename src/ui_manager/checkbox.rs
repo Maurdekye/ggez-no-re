@@ -8,7 +8,7 @@ use ggez::{
 
 use crate::util::{ContextExt, DrawableWihParamsExt, refit_to_rect};
 
-use super::{Bounds, TEXTINPUT_BODY, TEXTINPUT_BORDER, UIElementState};
+use super::{Bounds, UIElementRenderable, UIElementState, TEXTINPUT_BODY, TEXTINPUT_BORDER};
 
 #[derive(Debug)]
 pub struct Checkbox {
@@ -70,5 +70,15 @@ impl Checkbox {
             return Ok(Some(CursorIcon::Pointer));
         }
         Ok(None)
+    }
+}
+
+impl UIElementRenderable for Checkbox {
+    fn get_corrected_bounds(&self, ctx: &Context) -> ggez::graphics::Rect {
+        self.bounds.corrected_bounds(ctx.res())
+    }
+
+    fn get_state(&self) -> UIElementState {
+        self.state
     }
 }
